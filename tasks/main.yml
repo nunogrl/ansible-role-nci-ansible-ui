@@ -1,0 +1,91 @@
+---
+# tasks file for ansible-docker-nci
+- name: install python3
+  apt:
+    pkg:
+      - python3-venv
+      - python-setuptools
+      - git
+
+- name: create CI directory
+  file:
+    path: /opt/nci
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0755'
+
+- name: git clone nci-ansible
+  become: yes
+  become_user: "{{ deploy_user }}"
+  git:
+    force: yes
+    accept_hostkey: yes
+    repo: "https://github.com/barbearclassico/nci-ansible-ui-quick-setup.git"
+    remote: origin
+    version: master
+    dest: /opt/nci/nci-ansible-ui
+
+- name: setup a virtualenv
+  become: yes
+  become_user: "{{ deploy_user }}"
+  command: "python3 -m venv env-nci-ansible-ui"
+  args:
+    chdir: "/opt/nci"
+
+- name: pip - env-nci-ansible-ui
+  pip:
+    requirements: /opt/nci/nci-ansible-ui/requirements.txt
+    virtualenv: /opt/nci/env-nci-ansible-ui
+    virtualenv_python: python3.6
+  register: ansiblepipinstall
+
+- name: ansible virtualenv output
+  debug:
+    msg: "{{ ansiblepipinstall.stdout_lines }}"
+
+- name: install node dependencies
+  become: yes
+  become_user: "{{ deploy_user }}"
+  command: "npm install"
+  args:
+    chdir: "/opt/nci/nci-ansible-ui"
+
+- name: copy ssh config
+  become: yes
+  become_user: "{{ deploy_user }}"
+  copy:
+    src: config
+    dest: $HOME/.ssh/config
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0644'
+
+- name: create CI directory
+  copy:
+    src: nci-start.sh
+    dest: /opt/nci/nci-start.sh
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0755'
+
+- name: create CI directory
+  copy:
+    src: nci-stop.sh
+    dest: /opt/nci/nci-stop.sh
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0755'
+
+- name: install myservice systemd unit file
+  template:
+    src: nci-ansible-ui.j2
+    dest: /etc/systemd/system/nci-ansible-ui.service
+
+- name: start myservice
+  systemd:
+    state: started
+    name: nci-ansible-ui
+    daemon_reload: yes
+  notify:
+    restart nginx

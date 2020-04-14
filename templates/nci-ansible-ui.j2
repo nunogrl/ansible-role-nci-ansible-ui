@@ -1,0 +1,15 @@
+[Unit]
+Description=nci-ansible-ui Service
+After=network.target
+
+[Service]
+ExecStart=/opt/nci/nci-start.sh
+
+ExecStop=/opt/nci/nci-stop.sh
+
+User={{ deploy_user }}
+Group={{ deploy_user }}
+
+[Install]
+WantedBy=multi-user.target
+
