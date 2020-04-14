@@ -6,26 +6,77 @@ A brief description of the role goes here.
 Requirements
 ------------
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
 
 Role Variables
 --------------
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+`deploy_user` : default vagrant
+
 
 Dependencies
 ------------
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+This requires node 8.0
+
+- [ansible-role-nodejs](https://github.com/geerlingguy/ansible-role-nodejs)
+- [ansible-role-nginx](https://github.com/geerlingguy/ansible-role-nginx)
+
 
 Example Playbook
 ----------------
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+tree:
 
-    - hosts: servers
+    Vagrant
+    playbook.yaml
+    roles/
+      ansible-role-nodejs
+      ansible-role-nginx
+      ansible-role-nci-ansible-ui
+
+
+playbook:
+
+    ---
+    - hosts: all
+      become: yes
+      vars:
+        nodejs_version: "8.x"
+        ci_address: gitserver.dah
+        nginx_remove_default_vhost: true
+        nginx_vhosts:
+          - listen: "80"
+            server_name: "{{ ci_address }}"
+            state: "present"
+            template: "{{ nginx_vhost_template }}"
+            filename: "nci-ansible-ui.conf"
+            extra_parameters: |
+              location /keys/  {
+                alias    /var/www/keys/;
+                expires 30d;
+              }
+              location / {
+                proxy_pass      http://127.0.0.1:3000;
+                # auth_basic "Restricted Content";
+                # auth_basic_user_file /etc/nginx/.htpasswd;
+                # error_page 404 /404.html;
+                # error_page 401 /401.html;
+              }
+              location = /401.html {
+                 root /srv/errorpages/401;
+                 internal;
+              }
+              location = /404.html {
+                 root /srv/errorpages/404;
+                 internal;
+              }
       roles:
-         - { role: username.rolename, x: 42 }
+        - ansible-role-nodejs
+        - ansible-role-nginx
+        - ansible-role-nci-ansible-ui
+    
+
+
 
 License
 -------
