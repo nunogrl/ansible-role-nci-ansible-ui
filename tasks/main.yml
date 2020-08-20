@@ -61,6 +61,60 @@
     group: "{{ deploy_user }}"
     mode: '0644'
 
+- name: copy deployer priv key
+  become: yes
+  become_user: "{{ deploy_user }}"
+  lineinfile:
+    path: $HOME/.ssh/id_rsa
+    line: "{{ lookup('passwordstore', 'test01/ssh-priv returnall=true') }}"
+    mode: '0644'
+
+- name: copy deployer pub key
+  become: yes
+  become_user: "{{ deploy_user }}"
+  lineinfile:
+    path: $HOME/.ssh/authorized_keys
+    line: "{{ lookup('passwordstore', 'test01/ssh-pub returnall=true') }}"
+    mode: '0644'
+
+
+    #
+    #  copy:
+    #    src: config
+    #    dest: $HOME/.ssh/id_rsa
+    #    owner: "{{ deploy_user }}"
+    #    group: "{{ deploy_user }}"
+    #    mode: '0644'
+    #
+    #- name: copy deployer pub key
+    #  become: yes
+    #  become_user: "{{ deploy_user }}"
+    #  copy:
+    #    src: config
+    #    dest: $HOME/.ssh/authorized_keys
+    #    owner: "{{ deploy_user }}"
+    #    group: "{{ deploy_user }}"
+    #    mode: '0644'
+    #  become: yes
+    #  become_user: "{{ deploy_user }}"
+    #  lineinfile:
+    #    path: $HOME/.ssh/authorized_keys
+    #    line: {{ lookup('passwordstore', 'test01/ssh-pub returnall=true') }}
+    #    mode: '0644'
+    #
+
+- name: copy html before file content config
+  copy:
+    src: nginx-before.txt
+    dest: /var/www/keys/.files/nginx-before.txt
+    mode: '0644'
+
+- name: copy html after file content config
+  copy:
+    src: nginx-after.txt
+    dest: /var/www/keys/.files/nginx-after.txt
+    mode: '0644'
+
 - name: create CI directory
   copy:
     src: nci-start.sh
@@ -81,6 +135,15 @@
   template:
     src: nci-ansible-ui.j2
     dest: /etc/systemd/system/nci-ansible-ui.service
+
+- name: add .htpass
+  shell: |
+    set -o pipefail
+    printf "nuno:$(openssl passwd -crypt leitao)\n" >> /etc/nginx/.htpasswd
+  args:
+    executable: /bin/bash
+  register: htpasswd
+  changed_when: false 
 
 - name: start myservice
   systemd:
